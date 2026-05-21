@@ -336,6 +336,11 @@
   <!-- 入力フォームエリア -->
   <div class="form-area">
     <h2>入力フォーム</h2>
+    <div style="margin-bottom: 20px;">
+      <a href="items.html" style="display: inline-block; padding: 8px 12px; background-color: #34495e; color: #fff; text-decoration: none; border-radius: 4px; font-size: 0.85rem; font-weight: bold; width: 100%; text-align: center; box-sizing: border-box; transition: background-color 0.2s;">
+        項目表の作成はこちら ➜
+      </a>
+    </div>
     <div id="validation-warning" class="warning">必須項目（見積依頼番号、住所、工事件名）が未入力です。</div>
     
     <form id="input-form">
@@ -509,6 +514,70 @@
   const defaultDetails = `本依頼書は、太陽光発電設備（発電所または自家消費）の建設工事の見積依頼です。\n別紙の項目表および添付資料（配置図等）により見積をお願いいたします。`;
   const defaultOthers = `・客先特別仕様がある場合は、資料を添付しますので、見積に反映すること。\n・海岸より近傍の場合は、必要に応じて主要機器を耐塩塗装とすること。\n（海岸より300m→重耐塩、海岸より301～1000m→耐塩）`;
 
+  const STORAGE_KEY = "solar_quote_data";
+
+  // 自動保存
+  function saveToLocalStorage() {
+    const data = {
+      type: document.querySelector('input[name="type"]:checked')?.value || "新規",
+      dest: document.getElementById("in-dest").value,
+      no: document.getElementById("in-no").value,
+      address: document.getElementById("in-address").value,
+      project: document.getElementById("in-project").value,
+      dateStart: document.getElementById("in-date-start").value,
+      dateEnd: document.getElementById("in-date-end").value,
+      period: document.getElementById("in-period").value,
+      works: Array.from(document.querySelectorAll('input[name="work"]:checked')).map(cb => cb.value),
+      tests: Array.from(document.querySelectorAll('input[name="test"]:checked')).map(cb => cb.value),
+      details: document.getElementById("in-details").value,
+      others: document.getElementById("in-others").value
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  // 自動復元
+  function loadFromLocalStorage() {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return false;
+    try {
+      const data = JSON.parse(stored);
+      
+      // 種別ラジオボタン
+      const typeRadios = document.getElementsByName("type");
+      for (const radio of typeRadios) {
+        radio.checked = (radio.value === data.type);
+      }
+      
+      // テキスト・日付入力値
+      document.getElementById("in-dest").value = data.dest || "";
+      document.getElementById("in-no").value = data.no || "";
+      document.getElementById("in-address").value = data.address || "";
+      document.getElementById("in-project").value = data.project || "";
+      document.getElementById("in-date-start").value = data.dateStart || "";
+      document.getElementById("in-date-end").value = data.dateEnd || "";
+      document.getElementById("in-period").value = data.period || "";
+      document.getElementById("in-details").value = data.details !== undefined ? data.details : defaultDetails;
+      document.getElementById("in-others").value = data.others !== undefined ? data.others : defaultOthers;
+      
+      // チェックボックス復元 (工事)
+      const workCheckboxes = document.getElementsByName("work");
+      workCheckboxes.forEach(cb => {
+        cb.checked = data.works && data.works.includes(cb.value);
+      });
+      
+      // チェックボックス復元 (試験)
+      const testCheckboxes = document.getElementsByName("test");
+      testCheckboxes.forEach(cb => {
+        cb.checked = data.tests && data.tests.includes(cb.value);
+      });
+      
+      return true;
+    } catch (e) {
+      console.error("Failed to load stored data", e);
+      return false;
+    }
+  }
+
   // 初期化
   function init() {
     renderCheckboxes("in-works", "work", WORK_ITEMS);
@@ -520,6 +589,9 @@
     const m = today.getMonth() + 1;
     const d = today.getDate();
     document.getElementById("out-print-date").innerText = `${yyyy}年 ${m}月 ${d}日`;
+    
+    // ローカルストレージからのデータ復元を試みる
+    loadFromLocalStorage();
     
     updatePreview();
   }
@@ -622,11 +694,25 @@
   // イベントリスナー
   document.getElementById("btn-preview").addEventListener("click", updatePreview);
 
-  document.getElementById("btn-reset").addEventListener("click", () => {
-    document.getElementById("input-form").reset();
-    document.getElementById("in-details").value = defaultDetails;
-    document.getElementById("in-others").value = defaultOthers;
+  // リアルタイム自動保存 ＆ プレビュー更新の紐付け
+  const formElement = document.getElementById("input-form");
+  formElement.addEventListener("input", () => {
+    saveToLocalStorage();
     updatePreview();
+  });
+  formElement.addEventListener("change", () => {
+    saveToLocalStorage();
+    updatePreview();
+  });
+
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    if (confirm("入力内容をリセットしてもよろしいですか？")) {
+      formElement.reset();
+      document.getElementById("in-details").value = defaultDetails;
+      document.getElementById("in-others").value = defaultOthers;
+      localStorage.removeItem(STORAGE_KEY); // ローカルストレージを削除
+      updatePreview();
+    }
   });
 
   document.getElementById("btn-pdf").addEventListener("click", () => {

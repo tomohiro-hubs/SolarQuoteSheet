@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>太陽光設備 項目表メーカー</title>
+  <style>
+    :root {
+      --bg-color: #f5f6fa;
+      --paper-bg: #fff;
+      --primary-color: #34495e;
+      --accent-color: #2ecc71;
+      --reset-color: #e74c3c;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+      background-color: var(--bg-color);
+      color: #333;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    /* Layout */
+    .container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+    .form-area {
+      width: 500px;
+      min-width: 400px;
+      padding: 20px;
+      background-color: #fff;
+      border-right: 1px solid #ccc;
+      overflow-y: auto;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+    }
+    .preview-area {
+      flex: 1;
+      padding: 20px;
+      overflow: auto;
+      background-color: #e0e4e8;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    @media (max-width: 1024px) {
+      body { height: auto; overflow: auto; }
+      .container { flex-direction: column; }
+      .form-area { width: 100%; border-right: none; border-bottom: 1px solid #ccc; height: auto; }
+      .preview-area { padding: 10px; }
+    }
+
+    /* Form Styles */
+    h2 { font-size: 1.2rem; margin-top: 0; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-btn {
+      font-size: 0.85rem;
+      padding: 6px 12px;
+      background-color: var(--primary-color);
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+      transition: background-color 0.2s;
+    }
+    .nav-btn:hover {
+      background-color: #1a252f;
+    }
+
+    /* Scrollable form table */
+    .form-table-container {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 15px;
+    }
+    .form-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .form-table th, .form-table td {
+      border: 1px solid #ddd;
+      padding: 6px;
+      text-align: left;
+    }
+    .form-table th {
+      background-color: #f8f9fa;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .form-table input[type="text"] {
+      width: 100%;
+      padding: 4px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      box-sizing: border-box;
+      font-family: inherit;
+      font-size: 0.8rem;
+    }
+    .form-table input[type="text"]:focus {
+      border-color: #3498db;
+      outline: none;
+    }
+    .checkbox-col {
+      text-align: center;
+      width: 50px;
+    }
+    .checkbox-col input {
+      cursor: pointer;
+    }
+    .no-col {
+      width: 25px;
+      text-align: center;
+      font-weight: bold;
+      color: #666;
+    }
+
+    /* Buttons */
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 5px;
+    }
+    button {
+      flex: 1;
+      padding: 12px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s, transform 0.1s;
+      color: white;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    #btn-pdf { background-color: var(--accent-color); }
+    #btn-pdf:hover { background-color: #27ae60; }
+    #btn-reset { background-color: var(--reset-color); }
+    #btn-reset:hover { background-color: #c0392b; }
+
+    /* Paper/Report Styles */
+    .report-paper {
+      width: 210mm;
+      height: 295.5mm;
+      padding: 10mm 15mm 10mm 15mm;
+      background-color: var(--paper-bg);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      box-sizing: border-box;
+      color: #000;
+      font-family: "MS Pゴシック", "Hiragino Kaku Gothic ProN", Arial, sans-serif;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .report-header {
+      text-align: left;
+      margin-bottom: 8px;
+    }
+    .report-title {
+      font-size: 16pt;
+      font-weight: bold;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+      letter-spacing: 2px;
+      display: inline-block;
+      margin-bottom: 2px;
+    }
+
+    /* Table report styles */
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed; /* カラム幅の厳密な固定 */
+    }
+    
+    .preview-table th, .preview-table td {
+      border: 1px solid #000;
+      padding: 2.2px 4px;
+      font-size: 8pt; /* 42行をA4縦1枚に収める極小サイズ設定 */
+      line-height: 1.25;
+      height: 17.5px; /* 行高さを均等に固定 */
+      box-sizing: border-box;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap; /* テキストの改行による高さ肥大化を完全防止 */
+    }
+    
+    .preview-table th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+      text-align: center;
+    }
+    
+    .preview-table td.center {
+      text-align: center;
+    }
+    
+    .preview-table td.left {
+      text-align: left;
+    }
+
+    /* Column Widths */
+    .col-no { width: 5%; }
+    .col-item { width: 29%; }
+    .col-content { width: 30%; }
+    .col-memo { width: 18%; }
+    .col-share { width: 9%; }
+
+    /* 印刷用スタイル（高精細テキストPDF出力用） */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+      body {
+        background-color: #fff !important;
+        color: #000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .container {
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+      }
+      .form-area {
+        display: none !important;
+      }
+      .preview-area {
+        padding: 0 !important;
+        background-color: #fff !important;
+        overflow: visible !important;
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+      }
+      .report-paper {
+        width: 210mm !important;
+        height: 295.5mm !important;
+        padding: 10mm 15mm 10mm 15mm !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        border: none !important;
+        box-sizing: border-box !important;
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- 入力フォームエリア -->
+  <div class="form-area">
+    <h2>
+      <span>項目表 入力</span>
+      <a href="index.html" class="nav-btn">見積依頼書はこちら ➜</a>
+    </h2>
+    
+    <div class="form-table-container">
+      <table class="form-table">
+        <thead>
+          <tr>
+            <th class="no-col">No</th>
+            <th>項目</th>
+            <th>内容</th>
+            <th>備考</th>
+            <th class="checkbox-col">エナジオ</th>
+            <th class="checkbox-col">請負者</th>
+          </tr>
+        </thead>
+        <tbody id="form-table-body">
+          <!-- JSで42行を自動生成 -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="btn-group">
+      <button type="button" id="btn-pdf">PDF出力</button>
+      <button type="button" id="btn-reset">入力リセット</button>
+    </div>
+  </div>
+
+  <!-- プレビューエリア -->
+  <div class="preview-area">
+    <div id="report-paper" class="report-paper">
+      
+      <!-- ヘッダータイトル -->
+      <div class="report-header">
+        <div class="report-title">項目表</div>
+      </div>
+
+      <!-- テーブルプレビュー -->
+      <table class="preview-table">
+        <colgroup>
+          <col class="col-no">
+          <col class="col-item">
+          <col class="col-content">
+          <col class="col-memo">
+          <col class="col-share">
+          <col class="col-share">
+        </colgroup>
+        <thead>
+          <tr>
+            <th rowspan="2">No</th>
+            <th rowspan="2">項　　　目</th>
+            <th rowspan="2">内　　　容</th>
+            <th rowspan="2">備　　　考</th>
+            <th colspan="2">分 担 範 囲</th>
+          </tr>
+          <tr>
+            <th style="border-top: 1px solid #000;">エナジオ</th>
+            <th style="border-top: 1px solid #000;">請負者</th>
+          </tr>
+        </thead>
+        <tbody id="preview-table-body">
+          <!-- JSで42行を自動生成 -->
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // 初期データ (No 1〜27)
+  const INITIAL_ITEMS = [
+    { no: 1, name: "モジュール", content: "図面に記載の仕様・型式", memo: "", enagio: false, contractor: false },
+    { no: 2, name: "PCS", content: "図面に記載の仕様・型式", memo: "", enagio: false, contractor: false },
+    { no: 3, name: "架台", content: "図面に記載の仕様", memo: "", enagio: false, contractor: false },
+    { no: 4, name: "高圧盤", content: "図面に記載の仕様", memo: "", enagio: false, contractor: false },
+    { no: 5, name: "引込柱", content: "", memo: "", enagio: false, contractor: false },
+    { no: 6, name: "PAS", content: "", memo: "", enagio: false, contractor: false },
+    { no: 7, name: "PCS付帯装置", content: "", memo: "", enagio: false, contractor: false },
+    { no: 8, name: "気象計（日射、気温、パネル裏面）", content: "", memo: "", enagio: false, contractor: false },
+    { no: 9, name: "監視カメラ", content: "", memo: "", enagio: false, contractor: false },
+    { no: 10, name: "フェンス", content: "門扉含む", memo: "", enagio: false, contractor: false },
+    { no: 11, name: "高圧ケーブル", content: "", memo: "", enagio: false, contractor: false },
+    { no: 12, name: "低圧ケーブル", content: "アルミ", memo: "", enagio: false, contractor: false },
+    { no: 13, name: "PVケーブル", content: "", memo: "", enagio: false, contractor: false },
+    { no: 14, name: "通信ケーブル", content: "", memo: "", enagio: false, contractor: false },
+    { no: 15, name: "接地ケーブル", content: "", memo: "", enagio: false, contractor: false },
+    { no: 16, name: "使用前自主検査", content: "届出・受理まで", memo: "", enagio: false, contractor: false },
+    { no: 17, name: "IVカーブ測定", content: "", memo: "", enagio: false, contractor: false },
+    { no: 18, name: "主任技術者費用", content: "契約から引き渡しまで", memo: "名義はエナジオ", enagio: false, contractor: false },
+    { no: 19, name: "基礎工事", content: "高圧盤、架台", memo: "", enagio: false, contractor: false },
+    { no: 20, name: "設備設置工事", content: "全て", memo: "", enagio: false, contractor: false },
+    { no: 21, name: "電気工事", content: "全て", memo: "", enagio: false, contractor: false },
+    { no: 22, name: "接地工事", content: "", memo: "", enagio: false, contractor: false },
+    { no: 23, name: "各届け出", content: "経産・消防・電力など", memo: "必要に応じて追加", enagio: false, contractor: false },
+    { no: 24, name: "工事写真", content: "ANDPAD", memo: "黒板指定", enagio: false, contractor: false },
+    { no: 25, name: "産業廃棄物処理", content: "", memo: "", enagio: false, contractor: false },
+    { no: 26, name: "建設リサイクル法届出", content: "", memo: "", enagio: false, contractor: false },
+    { no: 27, name: "完成図書", content: "エナジオの指示にて", memo: "電子", enagio: false, contractor: false }
+  ];
+
+  const STORAGE_KEY = "solar_items_data";
+
+  // 全42行のデータリストを生成する
+  let currentItems = [];
+
+  // 自動保存
+  function saveToLocalStorage() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentItems));
+  }
+
+  // 自動復元
+  function loadFromLocalStorage() {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return false;
+    try {
+      currentItems = JSON.parse(stored);
+      return true;
+    } catch (e) {
+      console.error("Failed to load stored data", e);
+      return false;
+    }
+  }
+
+  function initData() {
+    currentItems = [];
+    
+    // ローカルストレージからの復元を試みる
+    if (loadFromLocalStorage()) {
+      return;
+    }
+    
+    // 復元できなければプリセットデータを初期展開
+    for (let i = 1; i <= 42; i++) {
+      const initial = INITIAL_ITEMS.find(item => item.no === i);
+      if (initial) {
+        currentItems.push({ ...initial });
+      } else {
+        currentItems.push({
+          no: i,
+          name: "",
+          content: "",
+          memo: "",
+          enagio: false,
+          contractor: false
+        });
+      }
+    }
+  }
+
+  // フォームおよびプレビューテーブルの生成
+  function renderAll() {
+    const formBody = document.getElementById("form-table-body");
+    const previewBody = document.getElementById("preview-table-body");
+    
+    formBody.innerHTML = "";
+    previewBody.innerHTML = "";
+
+    currentItems.forEach((item, index) => {
+      // 1. 入力フォームの行作成
+      const formTr = document.createElement("tr");
+      formTr.innerHTML = `
+        <td class="no-col">${item.no}</td>
+        <td><input type="text" id="in-name-${item.no}" value="${item.name}" oninput="updateItem(${item.no}, 'name', this.value)"></td>
+        <td><input type="text" id="in-content-${item.no}" value="${item.content}" oninput="updateItem(${item.no}, 'content', this.value)"></td>
+        <td><input type="text" id="in-memo-${item.no}" value="${item.memo}" oninput="updateItem(${item.no}, 'memo', this.value)"></td>
+        <td class="checkbox-col"><input type="checkbox" id="in-enagio-${item.no}" ${item.enagio ? 'checked' : ''} onchange="updateItem(${item.no}, 'enagio', this.checked)"></td>
+        <td class="checkbox-col"><input type="checkbox" id="in-contractor-${item.no}" ${item.contractor ? 'checked' : ''} onchange="updateItem(${item.no}, 'contractor', this.checked)"></td>
+      `;
+      formBody.appendChild(formTr);
+
+      // 2. プレビューテーブルの行作成
+      const previewTr = document.createElement("tr");
+      previewTr.id = `preview-tr-${item.no}`;
+      previewTr.innerHTML = `
+        <td class="center">${item.no}</td>
+        <td class="left" id="out-name-${item.no}">${escapeHtml(item.name)}</td>
+        <td class="left" id="out-content-${item.no}">${escapeHtml(item.content)}</td>
+        <td class="left" id="out-memo-${item.no}">${escapeHtml(item.memo)}</td>
+        <td class="center" id="out-enagio-${item.no}">${item.enagio ? '☑' : '□'}</td>
+        <td class="center" id="out-contractor-${item.no}">${item.contractor ? '☑' : '□'}</td>
+      `;
+      previewBody.appendChild(previewTr);
+    });
+  }
+
+  // 特定セルのリアルタイム更新
+  function updateItem(no, field, value) {
+    const item = currentItems.find(x => x.no === no);
+    if (!item) return;
+    
+    item[field] = value;
+    
+    // プレビュー側の該当箇所を即座に書き換え
+    if (field === 'enagio' || field === 'contractor') {
+      const outId = `out-${field}-${no}`;
+      document.getElementById(outId).innerText = value ? '☑' : '□';
+    } else {
+      const outId = `out-${field}-${no}`;
+      document.getElementById(outId).innerText = value;
+      // タイトル属性に追加してホバーで全文字見えるようにする（文字切れ対策）
+      document.getElementById(outId).title = value;
+    }
+    
+    // リアルタイム自動保存を実行
+    saveToLocalStorage();
+  }
+
+  // HTMLエスケープ処理
+  function escapeHtml(str) {
+    if (!str) return "";
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  // 初期化
+  function init() {
+    initData();
+    renderAll();
+  }
+
+  // イベントリスナー
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    if (confirm("入力内容を初期状態に戻しますか？")) {
+      localStorage.removeItem(STORAGE_KEY); // ローカルストレージ削除
+      init();
+    }
+  });
+
+  document.getElementById("btn-pdf").addEventListener("click", () => {
+    // YYYYMMDDの取得
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    
+    const filename = `${yyyy}${mm}${dd}-項目表`;
+
+    // 元のタイトルを一時保存し、印刷用ファイル名（デフォルト名）に変更
+    const originalTitle = document.title;
+    document.title = filename;
+
+    // 印刷
+    window.print();
+
+    // 元に戻す
+    document.title = originalTitle;
+  });
+
+  // 初期化実行
+  document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
